@@ -34,6 +34,12 @@ body {
   display: block;
 }
 
+.data-form {
+  display: none;
+}
+.data-form.active {
+  display: block;
+}
 .data-form div {
   max-width: 600px;
   width: 100%;

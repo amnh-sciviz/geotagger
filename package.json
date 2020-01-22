@@ -1,0 +1,10 @@
+{
+  "name": "amnh-geotagger",
+  "description": "Very lightweight app for manually tagging locations based on messy strings",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "devDependencies": {
+    "express": "^4.17.1"
+  }
+}

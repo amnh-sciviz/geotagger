@@ -1,2 +1,3 @@
-# geotagger
-Manually tag locations based on messy strings
+# Geotagger
+
+Very lightweight app for manually tagging locations based on messy strings

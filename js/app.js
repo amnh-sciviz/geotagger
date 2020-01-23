@@ -34,6 +34,8 @@ var App = (function() {
     this.$locationForm = $("#location-form");
     this.$dataForm = $("#data-form");
 
+    this.loadMap();
+
     this.loadLocalData();
     this.loadListeners();
   };
@@ -64,47 +66,102 @@ var App = (function() {
       if (_this.loading) return;
       _this.onDataSubmit();
     });
+
+    $('.submit-and-continue').on("click", function(){
+      _this.submitCurrentLocation();
+      _this.loadNext();
+    });
   };
 
   App.prototype.loadLocalData = function(){
 
   };
 
+  App.prototype.loadMap = function(){
+    this.map = L.map('map').setView([0, 0], 2);
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 18,
+      attribution: '&copy; <a href="https://openstreetmap.org/copyright">OpenStreetMap contributors</a>'
+    }).addTo(this.map);
+  };
+
+  App.prototype.loadNext = function(){
+    var _this = this;
+    this.dataIndex++;
+
+    if (this.dataIndex >= this.data.length) {
+      alert("You are done!");
+      return;
+    }
+
+    var item = this.data[this.dataIndex];
+    var fields = ["geoname","city","state","country"];
+
+    _.each(fields, function(field){
+      var value = _.has(item, field) ? item[field] : "";
+      _this.$locationForm.find("#" + field).val(value);
+    });
+
+    this.latitude = false;
+    this.longitude = false;
+    if (_.has(item, "latitude") && _.has(item, "longitude") && item["latitude"].length && item["longitude"].length) {
+      this.latitude = parseFloat(item["latitude"]);
+      this.longitude = parseFloat(item["longitude"]);
+    }
+
+    this.$locationForm.submit();
+  };
+
   App.prototype.onLocationSubmit = function(){
+    var _this = this;
     this.loadingOn();
 
+    var fields = ["geoname", "city", "state", "country"];
+    var values = [];
+    _.each(fields, function(field){
+      var value = _this.$locationForm.find("#" + field).val();
+      if (value.length) values.push(value);
+    });
+
     var params = {
-      "q": $("location").val(),
-      "format": "json"
+      "format": "json",
+      "q": values.join(", ")
     };
-
-    var city = this.$locationForm.find(".city").first().val();
-    if (city.length) params.city = city;
-
-    var state = this.$locationForm.find(".state").first().val();
-    if (state.length) params.state = state;
-
-    var country = this.$locationForm.find(".country").first().val();
-    if (country.length) params.country = country;
-
     // https://nominatim.org/release-docs/develop/api/Search/
     var queryString = $.param(params);
     var url = "https://nominatim.openstreetmap.org/search?" + queryString;
     console.log("Looking up " + url);
 
     $.getJSON(url, function(data) {
+      _this.loadingOff();
       if (!data.length) {
-        alert('No matches found for ' + params.q);
-        return false;
+        this.foundLocation = false;
+        alert('No matches found for ' + params.q + '. Please find it manually on the map.');
+
+      } else {
+        this.foundLocation = data[0];
+        _this.latitude = parseFloat(data[0]["lat"]);
+        _this.longitude = parseFloat(data[0]["lon"]);
       }
 
-      console.log(data);
+      _this.onLocationLookup();
     });
   };
 
   App.prototype.onDataLoaded = function(dataResult, tagsResult){
     this.loadingOff();
     this.$dataForm.removeClass("active");
+
+    console.log("Loaded " + dataResult.data.length + " data points");
+
+    this.data = dataResult.data;
+    this.dataIndex = -1;
+    this.loadNext();
+
+    if (tagsResult !== false) {
+      console.log("Loaded " + tagsResult.data.length + " tags");
+    }
   };
 
   App.prototype.onDataSubmit = function(){
@@ -115,12 +172,21 @@ var App = (function() {
     var tagsPromise = loadCsv($("#tags-file"));
 
     $.when(dataPromise, tagsPromise).done(function(dataResult, tagsResult) {
-      // console.log(dataResult);
-      // console.log(tagsResult);
       _this.onDataLoaded(dataResult, tagsResult);
     });
 
   };
+
+  App.prototype.onLocationLookup = function(){
+    if (this.latitude === false || this.longitude === false) {
+      this.map.setView([0, 0], 2);
+    } else {
+      this.map.setView([this.latitude, this.longitude], 9);
+    }
+
+  };
+
+  App.prototype.submitCurrentLocation = function(){};
 
   return App;
 
